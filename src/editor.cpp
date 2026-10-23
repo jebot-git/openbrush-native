@@ -88,6 +88,10 @@ Document Editor::copy(bool includeActive) const {
   }
   return result;
 }
+EditorSnapshot Editor::snapshot(bool includeActive) const {
+  std::lock_guard lock(mutex);
+  return {copy(includeActive), revision};
+}
 void Editor::load(Document value, bool modified) {
   std::lock_guard lock(mutex);
   for (const auto &s : value.strokes)

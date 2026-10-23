@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "panel-render.h"
+#include "save-worker.h"
 #include "xr.h"
 #include <fstream>
 #include <iostream>
@@ -139,13 +140,11 @@ int xrMain(int argc, char **argv) try {
   }
   ob::Editor editor;
   editor.load(std::move(document));
-  auto save = [&] {
-    auto version = editor.frame().revision;
-    ob::writeTilt(editor.copy(), output);
-    editor.saved(version);
-  };
-  ob::XrPainter painter(editor, save, overlay);
+  ob::SaveWorker saver(editor, output);
+  auto save = [&] { saver.request(); };
+  ob::XrPainter painter(editor, save, overlay, nullptr, save);
   painter.run(frames);
+  saver.flush();
   return 0;
 } catch (const std::exception &e) {
   std::cerr << "OpenBrush Native: " << e.what() << '\n';

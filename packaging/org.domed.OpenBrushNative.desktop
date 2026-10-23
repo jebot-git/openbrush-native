@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Name=OpenBrush Native
+GenericName=Spatial Painting
+Comment=Paint editable 3D artwork on desktop and in OpenXR
+Exec=openbrush-native %f
+Icon=org.domed.OpenBrushNative
+Terminal=false
+StartupNotify=true
+StartupWMClass=org.domed.OpenBrushNative
+Categories=Graphics;3DGraphics;
+MimeType=application/x-openbrush-tilt;
+Keywords=VR;XR;OpenXR;drawing;painting;Open Brush;Tilt Brush;
+Actions=XR;
+
+[Desktop Action XR]
+Name=Paint in XR
+Exec=openbrush-native --xr

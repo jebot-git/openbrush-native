@@ -6,9 +6,10 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 find_package(LibArchive REQUIRED)
-add_library(brush-core src/document.cpp src/tilt.cpp src/mesh.cpp src/brush.cpp src/editor.cpp src/navigation.cpp src/controller-profiles.cpp)
+find_package(Threads REQUIRED)
+add_library(brush-core src/document.cpp src/tilt.cpp src/mesh.cpp src/brush.cpp src/editor.cpp src/navigation.cpp src/controller-profiles.cpp src/save-worker.cpp)
 target_include_directories(brush-core PUBLIC src)
-target_link_libraries(brush-core PUBLIC LibArchive::LibArchive)
+target_link_libraries(brush-core PUBLIC LibArchive::LibArchive Threads::Threads)
 target_compile_options(brush-core PRIVATE -Wall -Wextra -Wpedantic)
 add_executable(openbrush-tool src/tool.cpp)
 target_link_libraries(openbrush-tool PRIVATE brush-core)
@@ -86,3 +87,23 @@ if(BUILD_TESTING)
   target_link_libraries(brush-touch-test PRIVATE brush-palette)
   add_test(NAME touch-controls COMMAND brush-touch-test)
 endif()
+if(BUILD_TESTING)
+  add_executable(brush-save-worker-test tests/save-worker.cpp)
+  target_compile_options(brush-save-worker-test PRIVATE -UNDEBUG)
+  target_link_libraries(brush-save-worker-test PRIVATE brush-core)
+  add_test(NAME background-save COMMAND brush-save-worker-test)
+endif()
+
+include(GNUInstallDirs)
+set_target_properties(openbrush-native PROPERTIES
+  INSTALL_RPATH "$<TARGET_FILE_DIR:fltk::fltk-shared>")
+install(TARGETS openbrush-native openbrush-tool RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES packaging/org.domed.OpenBrushNative.desktop
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES packaging/org.domed.OpenBrushNative.svg
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
+install(FILES packaging/org.domed.OpenBrushNative.xml
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/mime/packages)
+install(FILES README.md LICENSE NOTICE third_party/upstream.json
+  third_party/ui-adapters.json third_party/LICENSE.native-graphics
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/openbrush-native)

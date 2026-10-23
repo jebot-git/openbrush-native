@@ -26,6 +26,10 @@ struct EditorFrame {
   uint64_t toolRevision = 1;
   bool currentLayerVisible = true;
 };
+struct EditorSnapshot {
+  Document document;
+  uint64_t revision;
+};
 class Editor {
   mutable std::recursive_mutex mutex;
   Document document;
@@ -48,6 +52,7 @@ public:
   EditorFrame frame();
   void load(Document document, bool modified = false);
   Document copy(bool includeActive = false) const;
+  EditorSnapshot snapshot(bool includeActive = false) const;
   void saved(uint64_t version);
   void configure(ToolSettings settings);
   ToolSettings tools() const;

@@ -28,7 +28,24 @@ The default FLTK frontend explicitly selects Wayland and does not fall back to
 X11. X11 is available only with `-DOPENBRUSH_ENABLE_X11=ON` and an explicit
 `--x11` launch. `--version` and `--probe` do not create a desktop window.
 `--demo --render preview.ppm` renders an offscreen native GL diagnostic without
-starting XR or opening a display. There is no system installation target yet.
+starting XR or opening a display.
+
+Stage an optimized build as the regular user before installing system files:
+
+```sh
+DESTDIR="$PWD/build/stage" cmake --install build --prefix /usr/local
+build/stage/usr/local/bin/openbrush-native --version
+# After reviewing the staged files, install with administrative privileges:
+sudo cmake --install build --prefix /usr/local
+sudo update-desktop-database /usr/local/share/applications
+sudo update-mime-database /usr/local/share/mime
+```
+
+The installation includes the desktop launcher and **Paint in XR** action, SVG
+icon, `.tilt` MIME registration, command-line tool, licenses and provenance.
+The launcher uses the default Wayland editor; its XR action runs standalone.
+Installed binaries retain the selected patched FLTK library path. No service or
+compositor restart is required.
 
 ## FLTK editor and shared drawing state
 
@@ -107,7 +124,13 @@ there is no compositor, display-manager or WiVRn restart.
 
 `--xr` runs without the desktop editor. Without `--save`, completed edits save
 to `recovery.tilt` in the state directory, restored on the next standalone
-launch with no input file. Input artwork is never silently replaced unless
+launch with no input file. Saving runs on a dedicated background worker: edit
+requests coalesce while a previous write is pending, and normal exit waits for
+queued saves. Compression and disk I/O do not run on the XR frame thread.
+Write failures are reported and may be retried by requesting another save; an
+unresolved failure makes standalone mode exit unsuccessfully. A saved snapshot
+contains hidden layers and records its matching revision atomically, so later
+edits remain dirty. Input artwork is never silently replaced unless
 explicitly selected as the save destination. `--frames N` bounds a runtime test.
 
 The headset has a native spatial palette for tools, brushes, preset colors,
@@ -140,7 +163,7 @@ must be released before painting resumes. The same guard applies on startup.
 The production interaction path is covered by injected tracked-pose/action tests,
 including simple-controller trigger grabs. Physical user gestures and the full
 creative workflow still need manual verification. A headset-native file browser,
-additional brush fidelity/export work, and installation packaging remain
+additional brush fidelity/export work remain
 outstanding; FLTK dialogs provide file operations in desktop mode.
 
 ## Artwork and brush coverage
@@ -172,7 +195,10 @@ palette hit/layout agreement, captured clicks, focus/tracking recovery, grip and
 trigger navigation, pivot scaling, room-space tool sizes, light/2x Appearance,
 malformed settings and CPU/GPU palette pixel agreement. Touch tests cover the
 production binding table, extension gating, stick repeat/deadzones, stroke guards,
-button shortcuts, haptic requests and firm-trigger palette activation. Build with the optional X11
+button shortcuts, haptic requests and firm-trigger palette activation.
+Background-save tests block the writer to verify nonblocking requests, queue
+coalescing, version guards, hidden-layer preservation, failed-write recovery and
+shutdown drain. Build with the optional X11
 backend to include a private-display/private-bus FLTK interaction test covering
 pointer alignment, editing, menu host gain/loss, asynchronous file operations
 and recovery. A native Wayland capture has also been inspected under DomeD.

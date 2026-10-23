@@ -409,15 +409,13 @@ bool Studio::save(bool saveAs) {
         return false;
     }
   }
-  auto frame = editor.frame();
-  auto data = editor.copy();
-  io = std::async(std::launch::async, [data = std::move(data), destination,
-                                       version = frame.revision] {
+  io = std::async(std::launch::async, [this, destination] {
     IoResult result;
     result.path = destination;
-    result.version = version;
     try {
-      writeTilt(data, destination);
+      auto snapshot = editor.snapshot();
+      result.version = snapshot.revision;
+      writeTilt(snapshot.document, destination);
     } catch (const std::exception &e) {
       result.error = e.what();
     }
@@ -446,11 +444,11 @@ void Studio::startXR(unsigned frames) {
 void Studio::autosave() {
   if (recovery.valid())
     return;
-  auto data = editor.copy(true);
   auto path = recoveryPath;
-  recovery = std::async(std::launch::async, [data = std::move(data), path] {
+  recovery = std::async(std::launch::async, [this, path] {
     try {
-      writeTilt(data, path);
+      auto snapshot = editor.snapshot(true);
+      writeTilt(snapshot.document, path);
       return std::string();
     } catch (const std::exception &e) {
       return std::string("Recovery save failed: ") + e.what();
