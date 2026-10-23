@@ -3,6 +3,13 @@
 #include <cstddef>
 namespace ob {
 Mat4 identity() { return {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}; }
+Mat4 modelMatrix(Transform t) {
+  auto x = rotate(t.orientation, {t.scale, 0, 0}),
+       y = rotate(t.orientation, {0, t.scale, 0}),
+       z = rotate(t.orientation, {0, 0, t.scale});
+  return {x.x, x.y, x.z, 0, y.x,          y.y,          y.z,          0,
+          z.x, z.y, z.z, 0, t.position.x, t.position.y, t.position.z, 1};
+}
 Mat4 multiply(const Mat4 &a, const Mat4 &b) {
   Mat4 c{};
   for (int col = 0; col < 4; ++col)
@@ -117,6 +124,27 @@ void Renderer::render(const Batch &b) {
     glBindVertexArray(b.vao);
     glDrawElements(GL_TRIANGLES, b.count, GL_UNSIGNED_INT, nullptr);
   }
+}
+void Renderer::extras(const std::vector<Stroke> &strokes, const Mat4 &vp) {
+  if (strokes.empty())
+    return;
+  Mesh all;
+  for (const auto &s : strokes) {
+    auto mesh = brushMesh(s);
+    auto start = uint32_t(all.vertices.size());
+    all.vertices.insert(all.vertices.end(), mesh.vertices.begin(),
+                        mesh.vertices.end());
+    for (auto index : mesh.indices)
+      all.indices.push_back(start + index);
+  }
+  glUseProgram(shader);
+  glUniformMatrix4fv(matrix, 1, GL_FALSE, vp.data());
+  upload(live, all);
+  render(live);
+  glBindVertexArray(0);
+  glUseProgram(0);
+  if (glGetError() != GL_NO_ERROR)
+    throw std::runtime_error("OpenGL overlay rendering failed");
 }
 void Renderer::draw(const Document &d, const std::vector<Stroke> *active,
                     const Mat4 &vp, int w, int h, uint64_t revision,

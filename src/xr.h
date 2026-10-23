@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
+#include "controller-profiles.h"
 #include "editor.h"
 #include "graphics.h"
+#include "interaction.h"
+#include "panel-render.h"
 #include "render.h"
 #include <atomic>
 #define XR_USE_PLATFORM_EGL
@@ -23,18 +26,24 @@ class XrPainter {
   XrSession session{};
   XrSpace reference{};
   XrActionSet actionSet{};
-  XrAction grip{}, trigger{}, undo{}, redo{};
+  XrAction grip{}, aim{}, trigger{}, squeeze{}, menuAction{}, undo{}, redo{},
+      eraserAction{}, leftStick{}, rightStick{}, mirrorAction{},
+      recenterAction{}, haptic{};
   XrPath hands[2]{};
-  XrSpace handSpaces[2]{};
+  XrSpace handSpaces[2]{}, aimSpaces[2]{}, headSpace{};
   std::vector<Eye> eyes;
   XrSessionState state = XR_SESSION_STATE_UNKNOWN;
   bool running = false, quit = false, overlayMode = true;
   Editor &editor;
   std::atomic_bool *stop = nullptr;
   Renderer renderer;
+  Interaction interaction;
+  PanelRenderer panelRenderer;
+  uint64_t trackedFrames[2]{};
+  bool touchHands[2]{};
+  XrTime lastInputTime = 0;
 
   XrEnvironmentBlendMode blend = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
-  std::function<void()> changed;
   void setup(bool overlay);
   void events();
   void input(XrTime time);
@@ -43,7 +52,8 @@ class XrPainter {
 
 public:
   XrPainter(Editor &editor, std::function<void()> save, bool overlay = true,
-            std::atomic_bool *stop = nullptr);
+            std::atomic_bool *stop = nullptr,
+            std::function<void()> saveRequested = {});
   ~XrPainter();
   void run(unsigned frameLimit = 0);
   static void probe();

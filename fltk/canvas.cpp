@@ -38,12 +38,12 @@ void Canvas::sample(int x, int y) {
   auto settings = editor.tools();
   if (settings.tool == Tool::Select || settings.tool == Tool::Recolor) {
     auto camera = target + rotate(orientation(), {0, 0, distance});
-    bool selected = editor.selectRay(camera, p.position - camera, .008f,
-                                     Fl::event_state(FL_CTRL));
+    bool selected = editor.selectRayRoom(
+        camera, p.position - camera, settings.eraser, Fl::event_state(FL_CTRL));
     if (selected && settings.tool == Tool::Recolor)
       editor.recolorSelection(settings.color);
   } else
-    editor.sample(1, p);
+    editor.sampleRoom(1, p);
   redraw();
 }
 void Canvas::draw() {
@@ -62,11 +62,13 @@ void Canvas::draw() {
   float horizontal = std::atan(std::tan(.55f) * aspect);
   unsigned char r, g, b;
   Fl::get_color(FL_BACKGROUND2_COLOR, r, g, b);
-  renderer->draw(*frame.document, &frame.active,
-                 multiply(projection(-horizontal, horizontal, -.55f, .55f),
-                          viewMatrix(camera, q)),
-                 pixel_w(), pixel_h(), frame.revision,
-                 {r / 255.f, g / 255.f, b / 255.f, 1});
+  renderer->draw(
+      *frame.document, &frame.active,
+      multiply(multiply(projection(-horizontal, horizontal, -.55f, .55f),
+                        viewMatrix(camera, q)),
+               modelMatrix(frame.navigation)),
+      pixel_w(), pixel_h(), frame.revision,
+      {r / 255.f, g / 255.f, b / 255.f, 1});
 }
 int Canvas::handle(int event) {
   int x = Fl::event_x(), y = Fl::event_y();
@@ -117,6 +119,7 @@ int Canvas::handle(int event) {
   return Fl_Gl_Window::handle(event);
 }
 void Canvas::reset() {
+  editor.navigate({});
   target = {0, 1.3f, -1.2f};
   distance = 1.4f;
   yaw = pitch = 0;
@@ -127,7 +130,9 @@ void Canvas::fit() {
   Vec3 low{1e30f, 1e30f, 1e30f}, high{-1e30f, -1e30f, -1e30f};
   bool any = false;
   for (const auto &s : frame.document->strokes)
-    for (auto &p : s.points) {
+    for (auto &point : s.points) {
+      auto p = point;
+      p.position = transform(frame.navigation, p.position);
       any = true;
       low = {std::min(low.x, p.position.x), std::min(low.y, p.position.y),
              std::min(low.z, p.position.z)};

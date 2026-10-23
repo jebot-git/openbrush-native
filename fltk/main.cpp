@@ -85,8 +85,8 @@ int main(int argc, char **argv) try {
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
     if (arg == "--xr" || arg == "--headless" || arg == "--probe" ||
-        arg == "--render" || arg == "--version" || arg == "--frames" ||
-        arg == "--exclusive")
+        arg == "--render" || arg == "--palette-capture" || arg == "--version" ||
+        arg == "--frames" || arg == "--exclusive")
       return xrMain(argc, argv);
   }
   if (argc > 1 && std::string(argv[1]) == "--help") {

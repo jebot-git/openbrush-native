@@ -48,7 +48,10 @@ int main() {
   editor.recolorSelection({1, 0, 0, 1});
   assert(editor.copy().strokes[0].color.r == 1);
   assert(editor.undo());
+  editor.selectAll();
   editor.layerVisible(3, false);
+  assert(editor.frame().selected.empty());
+  editor.deleteSelection();
   assert(editor.frame().document->strokes.empty());
   assert(editor.copy().strokes.size() == 2);
   assert(!editor.sample(1, {{.3f, 1, -1}, {}, 1, 40}));

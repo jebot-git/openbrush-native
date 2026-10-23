@@ -9,7 +9,7 @@ than a claim of full Open Brush feature or visual parity.
 ## Build and run
 
 Dependencies: C++17, CMake, Ninja, OpenXR loader/development headers, EGL/OpenGL,
-libarchive, nlohmann JSON headers, Fontconfig, GIO, Wayland development headers,
+libarchive, nlohmann JSON headers, FreeType, Fontconfig, GIO, Wayland development headers,
 `wayland-scanner`, and the de-xr patched FLTK 1.4.5. Tests also use Python 3's
 standard library; the optional desktop interaction test needs Xvfb.
 
@@ -66,15 +66,42 @@ changes when opening, creating or closing drawings. Runtime data is under
 ## Native XR path
 
 The XR renderer uses real stereo projection layers, controller poses/actions,
-a local reference space, GPU OpenGL rendering and a windowless EGL context.
+a floor-aligned STAGE reference space where supported (LOCAL fallback), GPU
+OpenGL rendering and a windowless EGL context.
 Default overlay mode requires `XR_EXTX_overlay`, blends transparently behind
 the artwork, and coexists with the running compositor. `--exclusive` explicitly
 allows a primary session. The current Linux graphics path additionally requires
 `XR_KHR_opengl_enable` and `XR_MNDX_egl_enable`.
 
-Right trigger uses the selected tool, left trigger erases, and right A/B undo
-and redo on Touch controllers. Vive, Index and simple-controller pose/trigger
-bindings are also suggested, but have not been verified on those devices.
+Oculus Touch / Quest is the primary controller layout:
+
+| Control | Action |
+| --- | --- |
+| Right trigger | Paint/use selected tool; firm pull to click palette |
+| Left trigger | Temporary eraser |
+| Either grip / both grips | Move/rotate canvas / rotate and scale |
+| Left X / Y | Toggle palette / toggle eraser and previous tool |
+| Right A / B | Undo / redo |
+| Left stick horizontal / vertical | Previous/next brush / tool size |
+| Right stick horizontal / vertical | Previous/next color / opacity |
+| Left stick click | Toggle mirror |
+| Right stick click | Show and recenter palette |
+
+Stick adjustments work between strokes, with deadzones, directional sectors and
+held horizontal repeat. A stick held while painting or grabbing must return to
+neutral before changing tools. Vertical size adjustment is proportional (about
+2x per second at full deflection); opacity changes by 50% per second. Short
+haptic ticks confirm discrete actions. Palette gestures capture at light trigger
+pressure and activate once per firm pull, so dragging off a button cannot paint.
+The right Meta/system button is reserved for the runtime.
+
+Touch Pro and Touch Plus bindings are enabled only when their corresponding
+OpenXR extensions are advertised. The component paths follow the
+[Khronos Touch Pro](https://github.com/KhronosGroup/OpenXR-Docs/blob/main/specification/sources/chapters/extensions/fb/fb_touch_controller_pro.adoc)
+and [Touch Plus](https://github.com/KhronosGroup/OpenXR-Docs/blob/main/specification/sources/chapters/extensions/meta/meta_touch_controller_plus.adoc)
+profiles. Vive, Index and simple-controller pose/trigger bindings remain available.
+WiVRn currently supplies tracked poses using the simple profile; physical Touch
+button gestures and haptics still need headset verification.
 Stopping XR or changing a drawing stops only this application's XR worker;
 there is no compositor, display-manager or WiVRn restart.
 
@@ -83,10 +110,38 @@ to `recovery.tilt` in the state directory, restored on the next standalone
 launch with no input file. Input artwork is never silently replaced unless
 explicitly selected as the save destination. `--frames N` bounds a runtime test.
 
-A headset-native palette and canvas grab/navigation controls remain outstanding.
-The FLTK editor currently supplies brush/color/size/layer settings in XR.
-Physical controller painting and the complete creative workflow still require
-verification; short runtime tests establish stereo submission, not that coverage.
+The headset has a native spatial palette for tools, brushes, preset colors,
+size/opacity, mirrored painting, layers, undo/redo, selection, duplication,
+recolor, deletion and Save. It appears near the left hand in view and stays
+anchored in the room. Point the right controller's aim ray and press its trigger
+to activate a control. A click stays captured until release, so dragging off the
+panel does not paint accidentally. Left X/menu toggles the palette; **Hide**
+leaves a small **Tools** tab which can reopen it on simple controllers without
+an application menu button. The ray and target marker remain projected onto
+the panel.
+
+Palette text uses the configured DomeD font face/style through an isolated
+Fontconfig/FreeType loader; rasterized bitmap glyphs, colors, accent, opacity and
+1x/2x layout track Appearance changes. The small panel image uploads only when
+its contents change and is projected with OpenGL. No additional UI toolkit or
+external engine is used. Save requests from the XR worker are marshalled to the
+FLTK thread; standalone mode uses its selected save destination.
+
+Squeeze either controller to move/rotate the canvas; squeeze both to rotate and
+scale around their midpoint. On simple controllers, choose **Move** and use the
+triggers as grabs instead. Grip transitions rebase without jumping. Navigation
+is a session view transform: stored strokes and undo history are unchanged.
+New painting and erasing map back through that transform, keeping the physical
+tool size consistent. A controller-tip preview shows brush size or tool radius.
+**Fit drawing** brings visible artwork in front of the viewer, and **Reset view**
+restores the original placement. Focus/tracking loss ends a stroke; held triggers
+must be released before painting resumes. The same guard applies on startup.
+
+The production interaction path is covered by injected tracked-pose/action tests,
+including simple-controller trigger grabs. Physical user gestures and the full
+creative workflow still need manual verification. A headset-native file browser,
+additional brush fidelity/export work, and installation packaging remain
+outstanding; FLTK dialogs provide file operations in desktop mode.
 
 ## Artwork and brush coverage
 
@@ -112,12 +167,19 @@ export formats are also outstanding.
 Default CTest covers the real upstream `.tilt` fixture, an independent Python
 reader, extension/metadata/attachment preservation, malformed input, atomic
 save behavior, history, native colored GL output, editor transactions/layers,
-concurrent snapshots and Wayland backend policy. Build with the optional X11
+concurrent snapshots and Wayland backend policy. Additional tests cover projected
+palette hit/layout agreement, captured clicks, focus/tracking recovery, grip and
+trigger navigation, pivot scaling, room-space tool sizes, light/2x Appearance,
+malformed settings and CPU/GPU palette pixel agreement. Touch tests cover the
+production binding table, extension gating, stick repeat/deadzones, stroke guards,
+button shortcuts, haptic requests and firm-trigger palette activation. Build with the optional X11
 backend to include a private-display/private-bus FLTK interaction test covering
 pointer alignment, editing, menu host gain/loss, asynchronous file operations
 and recovery. A native Wayland capture has also been inspected under DomeD.
-A short combined FLTK/WiVRn run on 2026-10-23 submitted 14 stereo views in 15
-frames without restarting the user's session.
+A short WiVRn run on 2026-10-23 submitted the scene and palette in 14 stereo
+frames out of 15, with valid poses for both hands. The runtime selected the
+Khronos simple-controller profiles and supported STAGE space. Desktop and XR
+can also run together. These checks did not restart the user's session.
 
 `third_party/upstream.json` records the Open Brush revision, format sources and
 fixture provenance. Its 83-entry reference brush catalog is not a list of

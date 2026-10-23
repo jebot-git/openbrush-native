@@ -49,8 +49,10 @@ void XrPainter::probe() {
     std::cout << name << ": " << (has(list, name) ? "yes" : "no") << '\n';
 }
 XrPainter::XrPainter(Editor &value, std::function<void()> save, bool overlay,
-                     std::atomic_bool *stop)
-    : editor(value), stop(stop), changed(std::move(save)) {
+                     std::atomic_bool *stop,
+                     std::function<void()> saveRequested)
+    : editor(value), stop(stop),
+      interaction(value, std::move(save), std::move(saveRequested)) {
   try {
     setup(overlay);
   } catch (...) {
@@ -72,6 +74,15 @@ void XrPainter::cleanup() {
       xrDestroySpace(space);
       space = XR_NULL_HANDLE;
     }
+  for (auto &space : aimSpaces)
+    if (space) {
+      xrDestroySpace(space);
+      space = XR_NULL_HANDLE;
+    }
+  if (headSpace) {
+    xrDestroySpace(headSpace);
+    headSpace = XR_NULL_HANDLE;
+  }
   if (reference) {
     xrDestroySpace(reference);
     reference = XR_NULL_HANDLE;
@@ -103,6 +114,13 @@ void XrPainter::setup(bool overlay) {
                                "explicitly allows primary XR session mode");
     ext.push_back(XR_EXTX_OVERLAY_EXTENSION_NAME);
   }
+  std::vector<std::string> extensionNames;
+  for (const auto &item : available)
+    extensionNames.emplace_back(item.extensionName);
+  auto profiles = controllerProfiles(extensionNames);
+  for (const auto &profile : profiles)
+    if (!profile.extension.empty())
+      ext.push_back(profile.extension.c_str());
   instance = create(ext);
   XrSystemGetInfo get{XR_TYPE_SYSTEM_GET_INFO};
   get.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
@@ -134,9 +152,25 @@ void XrPainter::setup(bool overlay) {
   info.systemId = system;
   XR(xrCreateSession(instance, &info, &session));
   XrReferenceSpaceCreateInfo ref{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
-  ref.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
+  uint32_t spaceCount = 0;
+  XR(xrEnumerateReferenceSpaces(session, 0, &spaceCount, nullptr));
+  std::vector<XrReferenceSpaceType> spaces(spaceCount);
+  XR(xrEnumerateReferenceSpaces(session, spaceCount, &spaceCount,
+                                spaces.data()));
+  ref.referenceSpaceType =
+      std::find(spaces.begin(), spaces.end(), XR_REFERENCE_SPACE_TYPE_STAGE) !=
+              spaces.end()
+          ? XR_REFERENCE_SPACE_TYPE_STAGE
+          : XR_REFERENCE_SPACE_TYPE_LOCAL;
+  std::cout << "XR reference="
+            << (ref.referenceSpaceType == XR_REFERENCE_SPACE_TYPE_STAGE
+                    ? "STAGE"
+                    : "LOCAL")
+            << '\n';
   ref.poseInReferenceSpace.orientation.w = 1;
   XR(xrCreateReferenceSpace(session, &ref, &reference));
+  ref.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
+  XR(xrCreateReferenceSpace(session, &ref, &headSpace));
   XrActionSetCreateInfo set{XR_TYPE_ACTION_SET_CREATE_INFO};
   strcpy(set.actionSetName, "paint");
   strcpy(set.localizedActionSetName, "Painting");
@@ -153,37 +187,53 @@ void XrPainter::setup(bool overlay) {
     XR(xrCreateAction(actionSet, &a, &handle));
   };
   action("grip_pose", XR_ACTION_TYPE_POSE_INPUT, grip);
+  action("aim_pose", XR_ACTION_TYPE_POSE_INPUT, aim);
+  action("canvas_grab", XR_ACTION_TYPE_FLOAT_INPUT, squeeze);
+  action("palette", XR_ACTION_TYPE_BOOLEAN_INPUT, menuAction);
   action("paint_pressure", XR_ACTION_TYPE_FLOAT_INPUT, trigger);
   action("undo", XR_ACTION_TYPE_BOOLEAN_INPUT, undo);
   action("redo", XR_ACTION_TYPE_BOOLEAN_INPUT, redo);
-  for (auto profile : {"/interaction_profiles/oculus/touch_controller",
-                       "/interaction_profiles/valve/index_controller",
-                       "/interaction_profiles/htc/vive_controller",
-                       "/interaction_profiles/khr/simple_controller"}) {
+  action("eraser", XR_ACTION_TYPE_BOOLEAN_INPUT, eraserAction);
+  action("left_stick", XR_ACTION_TYPE_VECTOR2F_INPUT, leftStick);
+  action("right_stick", XR_ACTION_TYPE_VECTOR2F_INPUT, rightStick);
+  action("mirror", XR_ACTION_TYPE_BOOLEAN_INPUT, mirrorAction);
+  action("recenter", XR_ACTION_TYPE_BOOLEAN_INPUT, recenterAction);
+  action("feedback", XR_ACTION_TYPE_VIBRATION_OUTPUT, haptic);
+  const std::vector<std::pair<std::string, XrAction>> actions{
+      {"grip", grip},
+      {"aim", aim},
+      {"trigger", trigger},
+      {"squeeze", squeeze},
+      {"menu", menuAction},
+      {"undo", undo},
+      {"redo", redo},
+      {"eraser", eraserAction},
+      {"left_stick", leftStick},
+      {"right_stick", rightStick},
+      {"mirror", mirrorAction},
+      {"recenter", recenterAction},
+      {"haptic", haptic}};
+  for (const auto &profile : profiles) {
     std::vector<XrActionSuggestedBinding> bindings;
-    bool simple = std::string(profile).find("simple") != std::string::npos;
-    auto bind = [&](XrAction handle, const std::string &path) {
-      XrPath p;
-      XR(xrStringToPath(instance, path.c_str(), &p));
-      bindings.push_back({handle, p});
-    };
-    for (auto hand : {"left", "right"}) {
-      std::string base = "/user/hand/" + std::string(hand) + "/input/";
-      bind(grip, base + "grip/pose");
-      bind(trigger, base + (simple ? "select/click" : "trigger/value"));
-    }
-    if (std::string(profile).find("touch") != std::string::npos) {
-      bind(undo, "/user/hand/right/input/a/click");
-      bind(redo, "/user/hand/right/input/b/click");
+    for (const auto &binding : controllerBindings(profile)) {
+      auto action =
+          std::find_if(actions.begin(), actions.end(), [&](const auto &a) {
+            return a.first == binding.action;
+          });
+      if (action == actions.end())
+        throw std::runtime_error("Unknown controller action");
+      XrPath path;
+      XR(xrStringToPath(instance, binding.path.c_str(), &path));
+      bindings.push_back({action->second, path});
     }
     XrInteractionProfileSuggestedBinding suggest{
         XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
-    XR(xrStringToPath(instance, profile, &suggest.interactionProfile));
+    XR(xrStringToPath(instance, profile.path.c_str(),
+                      &suggest.interactionProfile));
     suggest.countSuggestedBindings = bindings.size();
     suggest.suggestedBindings = bindings.data();
-    auto result = xrSuggestInteractionProfileBindings(instance, &suggest);
-    if (XR_FAILED(result))
-      std::cerr << "Controller profile not available: " << profile << '\n';
+    if (XR_FAILED(xrSuggestInteractionProfileBindings(instance, &suggest)))
+      std::cerr << "Controller profile not available: " << profile.path << '\n';
   }
   XrSessionActionSetsAttachInfo attach{XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO};
   attach.countActionSets = 1;
@@ -195,6 +245,8 @@ void XrPainter::setup(bool overlay) {
     space.subactionPath = hands[i];
     space.poseInActionSpace.orientation.w = 1;
     XR(xrCreateActionSpace(session, &space, &handSpaces[i]));
+    space.action = aim;
+    XR(xrCreateActionSpace(session, &space, &aimSpaces[i]));
   }
   uint32_t n = 0;
   XR(xrEnumerateEnvironmentBlendModes(instance, system,
@@ -257,15 +309,10 @@ void XrPainter::setup(bool overlay) {
                           e.height);
   }
 }
-void XrPainter::finishStroke() {
-  auto before = editor.frame().revision;
-  editor.finish(2);
-  if (editor.frame().revision != before)
-    changed();
-}
+void XrPainter::finishStroke() { interaction.finish(); }
 void XrPainter::input(XrTime time) {
   if (state != XR_SESSION_STATE_FOCUSED) {
-    finishStroke();
+    interaction.update({}, {}, {false});
     return;
   }
   XrActiveActionSet activeSet{actionSet, XR_NULL_PATH};
@@ -273,52 +320,99 @@ void XrPainter::input(XrTime time) {
   sync.countActiveActionSets = 1;
   sync.activeActionSets = &activeSet;
   XR(xrSyncActions(session, &sync));
-  for (auto pair : {std::pair<XrAction, bool>{undo, false}, {redo, true}}) {
+  auto pressed = [&](XrAction action, int hand) {
     XrActionStateGetInfo get{XR_TYPE_ACTION_STATE_GET_INFO};
-    get.action = pair.first;
-    get.subactionPath = hands[1];
+    get.action = action;
+    get.subactionPath = hands[hand];
     XrActionStateBoolean value{XR_TYPE_ACTION_STATE_BOOLEAN};
     XR(xrGetActionStateBoolean(session, &get, &value));
-    if (value.isActive && value.changedSinceLastSync && value.currentState) {
-      finishStroke();
-      if (pair.second ? editor.redo() : editor.undo())
-        changed();
-    }
-  }
-  // Read both controllers before mutating a stroke. Erasing wins when both
-  // triggers are held, avoiding a new one-point stroke every frame.
-  struct Hand {
-    bool down = false;
-    Point point;
+    return value.isActive && value.changedSinceLastSync && value.currentState;
   };
-  Hand hand[2];
-  for (int i = 0; i < 2; ++i) {
+  auto amount = [&](XrAction action, int hand) {
     XrActionStateGetInfo get{XR_TYPE_ACTION_STATE_GET_INFO};
-    get.action = trigger;
-    get.subactionPath = hands[i];
+    get.action = action;
+    get.subactionPath = hands[hand];
     XrActionStateFloat value{XR_TYPE_ACTION_STATE_FLOAT};
     XR(xrGetActionStateFloat(session, &get, &value));
-    XrSpaceLocation pose{XR_TYPE_SPACE_LOCATION};
-    XR(xrLocateSpace(handSpaces[i], reference, time, &pose));
+    return value.isActive ? value.currentState : 0.f;
+  };
+  auto locate = [&](XrSpace space, Transform &target) {
+    XrSpaceLocation value{XR_TYPE_SPACE_LOCATION};
+    XR(xrLocateSpace(space, reference, time, &value));
     auto flags = XR_SPACE_LOCATION_POSITION_VALID_BIT |
                  XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
-    hand[i].down = value.isActive && value.currentState > .08f &&
-                   (pose.locationFlags & flags) == flags;
-    hand[i].point = {
-        {pose.pose.position.x, pose.pose.position.y, pose.pose.position.z},
-        {pose.pose.orientation.x, pose.pose.orientation.y,
-         pose.pose.orientation.z, pose.pose.orientation.w},
-        value.currentState,
-        uint32_t(time / 1000000)};
+    if ((value.locationFlags & flags) != flags)
+      return false;
+    target = {
+        {value.pose.position.x, value.pose.position.y, value.pose.position.z},
+        {value.pose.orientation.x, value.pose.orientation.y,
+         value.pose.orientation.z, value.pose.orientation.w},
+        1};
+    return finite(target);
+  };
+  auto poseActive = [&](XrAction action, int i) {
+    XrActionStateGetInfo get{XR_TYPE_ACTION_STATE_GET_INFO};
+    get.action = action;
+    get.subactionPath = hands[i];
+    XrActionStatePose value{XR_TYPE_ACTION_STATE_POSE};
+    XR(xrGetActionStatePose(session, &get, &value));
+    return value.isActive;
+  };
+  std::array<TrackedHand, 2> input;
+  for (int i = 0; i < 2; ++i) {
+    input[i].valid =
+        poseActive(grip, i) && locate(handSpaces[i], input[i].grip);
+    input[i].aimValid =
+        poseActive(aim, i) && locate(aimSpaces[i], input[i].aim);
+    if (input[i].valid)
+      ++trackedFrames[i];
+    input[i].timeMs = uint32_t(time / 1000000);
+    input[i].trigger = amount(trigger, i);
+    input[i].squeeze = amount(squeeze, i);
   }
-  if (hand[0].down) {
-    finishStroke();
-    if (editor.erase(hand[0].point.position, editor.tools().eraser))
-      changed();
-  } else if (hand[1].down)
-    editor.sample(2, hand[1].point);
-  else
-    finishStroke();
+  Transform head;
+  if (!locate(headSpace, head)) {
+    interaction.update({}, {}, {false});
+    return;
+  }
+  auto axes = [&](XrAction action, int hand) {
+    XrActionStateGetInfo get{XR_TYPE_ACTION_STATE_GET_INFO};
+    get.action = action;
+    get.subactionPath = hands[hand];
+    XrActionStateVector2f value{XR_TYPE_ACTION_STATE_VECTOR2F};
+    XR(xrGetActionStateVector2f(session, &get, &value));
+    return value.isActive ? value.currentState : XrVector2f{};
+  };
+  SessionControls controls;
+  controls.palette = pressed(menuAction, 0);
+  controls.undo = pressed(undo, 1);
+  controls.redo = pressed(redo, 1);
+  controls.eraser = pressed(eraserAction, 0);
+  controls.mirror = pressed(mirrorAction, 0);
+  controls.recenter = pressed(recenterAction, 1);
+  controls.touch = touchHands[0] || touchHands[1];
+  auto l = axes(leftStick, 0), r = axes(rightStick, 1);
+  controls.leftX = l.x;
+  controls.leftY = l.y;
+  controls.rightX = r.x;
+  controls.rightY = r.y;
+  controls.seconds =
+      lastInputTime ? std::clamp(float(time - lastInputTime) / 1e9f, 0.f, .05f)
+                    : 1.f / 90;
+  lastInputTime = time;
+  interaction.update(input, head, controls);
+  for (const auto &pulse : interaction.takeHaptics()) {
+    XrHapticActionInfo info{XR_TYPE_HAPTIC_ACTION_INFO};
+    info.action = haptic;
+    info.subactionPath = hands[pulse.hand];
+    XrHapticVibration vibration{XR_TYPE_HAPTIC_VIBRATION};
+    vibration.duration = XrDuration(pulse.milliseconds) * 1000000;
+    vibration.frequency = XR_FREQUENCY_UNSPECIFIED;
+    vibration.amplitude = pulse.amplitude;
+    xrApplyHapticFeedback(
+        session, &info,
+        reinterpret_cast<const XrHapticBaseHeader *>(&vibration));
+  }
 }
 void XrPainter::events() {
   XrEventDataBuffer event{XR_TYPE_EVENT_DATA_BUFFER};
@@ -339,6 +433,22 @@ void XrPainter::events() {
       } else if (state == XR_SESSION_STATE_EXITING ||
                  state == XR_SESSION_STATE_LOSS_PENDING)
         quit = true;
+    } else if (event.type == XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED) {
+      for (int i = 0; i < 2; ++i) {
+        XrInteractionProfileState profile{XR_TYPE_INTERACTION_PROFILE_STATE};
+        XR(xrGetCurrentInteractionProfile(session, hands[i], &profile));
+        touchHands[i] = false;
+        if (profile.interactionProfile != XR_NULL_PATH) {
+          char name[XR_MAX_PATH_LENGTH];
+          uint32_t length = 0;
+          XR(xrPathToString(instance, profile.interactionProfile, sizeof(name),
+                            &length, name));
+          touchHands[i] =
+              std::string(name).find("touch_controller") != std::string::npos;
+          std::cout << "XR " << (i == 0 ? "left" : "right")
+                    << " profile=" << name << '\n';
+        }
+      }
     } else if (event.type == XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING)
       quit = true;
     event = {XR_TYPE_EVENT_DATA_BUFFER};
@@ -347,7 +457,7 @@ void XrPainter::events() {
     check(result, "xrPollEvent");
 }
 void XrPainter::run(unsigned frameLimit) {
-  unsigned frames = 0, rendered = 0;
+  unsigned frames = 0, rendered = 0, paletteFrames = 0;
   while (!quit && !(stop && stop->load())) {
     events();
     if (!running) {
@@ -407,10 +517,15 @@ void XrPainter::run(unsigned frameLimit) {
               viewMatrix({p.position.x, p.position.y, p.position.z},
                          {p.orientation.x, p.orientation.y, p.orientation.z,
                           p.orientation.w}));
-          renderer.draw(*content.document, &content.active, vp, e.width,
+          renderer.draw(*content.document, &content.active,
+                        multiply(vp, modelMatrix(content.navigation)), e.width,
                         e.height, content.revision,
                         overlayMode ? Color{0, 0, 0, 0}
                                     : Color{.035f, .045f, .06f, 1});
+          if (interaction.panel().visible())
+            panelRenderer.draw(interaction.panel().image(content),
+                               interaction.panel().transform(), vp);
+          renderer.extras(interaction.visuals(), vp);
           glFlush();
           XrSwapchainImageReleaseInfo release{
               XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
@@ -430,6 +545,8 @@ void XrPainter::run(unsigned frameLimit) {
     end.layerCount = submit ? 1 : 0;
     end.layers = submit ? &base : nullptr;
     XR(xrEndFrame(session, &end));
+    if (submit && interaction.panel().visible())
+      ++paletteFrames;
     if (submit)
       ++rendered;
     ++frames;
@@ -438,6 +555,8 @@ void XrPainter::run(unsigned frameLimit) {
   }
   finishStroke();
   std::cout << "XR frames=" << frames << " stereo_submissions=" << rendered
-            << "\n";
+            << " palette_frames=" << paletteFrames
+            << " tracked_left=" << trackedFrames[0]
+            << " tracked_right=" << trackedFrames[1] << "\n";
 }
 } // namespace ob

@@ -54,7 +54,7 @@ Studio::Studio() : dx::GpuWindow(1100, 790, "OpenBrush Native") {
     menu.add(item.first, item.second, menuAction, this);
   tool.align(FL_ALIGN_TOP_LEFT);
   brush.align(FL_ALIGN_TOP_LEFT);
-  tool.add("Paint|Erase|Select|Recolor");
+  tool.add("Paint|Erase|Select|Recolor|Move canvas");
   tool.value(0);
   for (auto &b : brushes())
     brush.add(b.name.c_str());
@@ -75,6 +75,25 @@ Studio::Studio() : dx::GpuWindow(1100, 790, "OpenBrush Native") {
   for (auto *w :
        std::vector<Fl_Widget *>{&tool, &brush, &size, &opacity, &mirror})
     w->callback(update, this);
+  tool.callback(
+      [](Fl_Widget *, void *p) {
+        auto &s = *static_cast<Studio *>(p);
+        auto value = s.editor.tools();
+        value.tool = Tool(s.tool.value());
+        s.editor.configure(value);
+        s.syncControls();
+      },
+      this);
+  brush.callback(
+      [](Fl_Widget *, void *p) {
+        auto &s = *static_cast<Studio *>(p);
+        auto value = s.editor.tools();
+        value.brush = brushes().at(s.brush.value()).guid;
+        value.tool = Tool::Paint;
+        s.editor.configure(value);
+        s.syncControls();
+      },
+      this);
   color.callback(
       [](Fl_Widget *, void *p) {
         auto &s = *static_cast<Studio *>(p);
@@ -182,7 +201,10 @@ void Studio::setControls() {
   value.tool = Tool(tool.value());
   if (brush.value() >= 0)
     value.brush = brushes().at(brush.value()).guid;
-  value.size = size.value() / 1000.f;
+  if (value.tool == Tool::Paint)
+    value.size = size.value() / 1000.f;
+  else
+    value.eraser = size.value() / 1000.f;
   value.color.a = opacity.value();
   value.mirror = mirror.value();
   editor.configure(value);
@@ -194,7 +216,9 @@ void Studio::syncControls() {
   for (size_t i = 0; i < brushes().size(); ++i)
     if (brushes()[i].guid == value.brush)
       brush.value(i);
-  size.value(value.size * 1000);
+  size.value((value.tool == Tool::Paint ? value.size : value.eraser) * 1000);
+  size.label(value.tool == Tool::Paint ? "Brush size (mm)"
+                                       : "Tool radius (mm)");
   opacity.value(value.color.a);
   mirror.value(value.mirror);
   color.color(fl_rgb_color(value.color.r * 255, value.color.g * 255,
@@ -219,6 +243,8 @@ void Studio::syncControls() {
   redraw();
 }
 void Studio::poll() {
+  if (xrSaveRequested.exchange(false))
+    save();
   auto ready = [](auto &future) {
     return future.valid() && future.wait_for(std::chrono::seconds(0)) ==
                                  std::future_status::ready;
@@ -279,7 +305,9 @@ void Studio::poll() {
     redoButton.activate();
   else
     redoButton.deactivate();
-  if (frame.revision != lastRevision) {
+  if (frame.revision != lastRevision ||
+      frame.toolRevision != lastToolRevision) {
+    lastToolRevision = frame.toolRevision;
     lastRevision = frame.revision;
     syncControls();
   }
@@ -406,7 +434,8 @@ void Studio::startXR(unsigned frames) {
   xrButton.copy_label("Stop XR painting");
   xr = std::async(std::launch::async, [this, frames] {
     try {
-      XrPainter painter(editor, [] {}, true, &xrStop);
+      XrPainter painter(
+          editor, [] {}, true, &xrStop, [this] { xrSaveRequested = true; });
       painter.run(frames);
       return std::string();
     } catch (const std::exception &e) {
@@ -525,11 +554,17 @@ void Studio::command(const std::string &name) {
       xrStop = true;
     else if (name == "Controls")
       fl_message(
-          "Desktop: left draws on the view plane; right drag orbits; "
-          "middle/Shift drag pans; wheel zooms.\nXR: right trigger uses the "
-          "selected tool; left trigger erases; right A/B undo/redo.\nChoose "
-          "brush, color, size and layer here; they apply live in XR.\nF6 "
-          "starts XR painting. Ctrl-S saves. Ctrl-Z / Ctrl-Shift-Z undo/redo.");
+          "Desktop: left uses the tool; right drag orbits; middle/Shift drag "
+          "pans; wheel zooms.\nXR: right trigger uses the tool; left trigger "
+          "erases. Touch: X tools, Y eraser; A/B undo/redo.\n"
+          "Left stick: brush/size. Right stick: color/opacity (between strokes).\n"
+          "Left stick click: mirror. Right stick click: recenter tools.\n"
+          "Firm trigger pull clicks palette buttons. Use the headset "
+          "palette for brushes, colors, layers, editing and Save. Left X/menu "
+          "toggles it; Hide leaves a Tools tab.\nSqueeze grips to move the "
+          "canvas, or select Move and use triggers. Two grabs rotate/scale. "
+          "Fit drawing brings artwork in front of you.\nF6 starts XR painting. "
+          "Ctrl-S saves. Ctrl-Z / Ctrl-Shift-Z undo/redo.");
     else if (name == "About")
       fl_message("OpenBrush Native 0.1 — de-xr\nNative C++ / OpenXR / OpenGL / "
                  "FLTK. No external game engine.\nEarly implementation; brush "

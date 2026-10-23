@@ -8,6 +8,7 @@
 namespace ob {
 using Mat4 = std::array<float, 16>;
 Mat4 identity();
+Mat4 modelMatrix(Transform value);
 Mat4 multiply(const Mat4 &a, const Mat4 &b);
 Mat4 viewMatrix(Vec3 position, Quat orientation);
 Mat4 projection(float left, float right, float down, float up,
@@ -33,6 +34,7 @@ public:
     live = {};
     cachedRevision = 0;
   }
+  void extras(const std::vector<Stroke> &strokes, const Mat4 &viewProjection);
   void draw(const Document &d, const std::vector<Stroke> *active,
             const Mat4 &viewProjection, int width, int height,
             uint64_t revision = 0, Color background = {.035f, .045f, .06f, 1});

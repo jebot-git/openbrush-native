@@ -63,11 +63,11 @@ class Studio : public dx::GpuWindow {
   };
   std::future<IoResult> io;
   std::future<std::string> xr, recovery;
-  std::atomic_bool xrStop{false};
+  std::atomic_bool xrStop{false}, xrSaveRequested{false};
   std::function<void()> afterIo, afterXR;
   std::filesystem::path recoveryPath, recoveredFrom;
   std::chrono::steady_clock::time_point nextRecovery;
-  uint64_t lastRevision = 0;
+  uint64_t lastRevision = 0, lastToolRevision = 0;
   bool closing = false;
   static void timer(void *);
   static void menuAction(Fl_Widget *, void *);

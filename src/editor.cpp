@@ -35,7 +35,10 @@ EditorFrame Editor::frame() {
                      history->dirty() || owner != 0,
                      history->canUndo(),
                      history->canRedo(),
-                     selected};
+                     selected,
+                     navigation,
+                     toolRevision,
+                     !hiddenLayers.count(settings.layer)};
   if (owner && !active.points.empty()) {
     result.active.push_back(active);
     if (settings.mirror)
@@ -97,6 +100,7 @@ void Editor::load(Document value, bool modified) {
   active = Stroke{};
   selected.clear();
   hiddenLayers.clear();
+  navigation = {};
   changed();
 }
 void Editor::saved(uint64_t version) {
@@ -105,6 +109,8 @@ void Editor::saved(uint64_t version) {
     history->markSaved();
 }
 void Editor::configure(ToolSettings value) {
+  if (int(value.tool) < 0 || int(value.tool) > int(Tool::Navigate))
+    throw std::runtime_error("Invalid tool");
   Stroke probe;
   probe.size = value.size;
   probe.brush = value.brush;
@@ -115,6 +121,7 @@ void Editor::configure(ToolSettings value) {
   std::lock_guard lock(mutex);
   finishLocked();
   settings = std::move(value);
+  ++toolRevision;
 }
 ToolSettings Editor::tools() const {
   std::lock_guard lock(mutex);
@@ -139,16 +146,51 @@ void Editor::finish(int source) {
 }
 bool Editor::sample(int source, Point p) {
   std::lock_guard lock(mutex);
+  return sampleInternal(source, p, 1);
+}
+bool Editor::sampleRoom(int source, Point p) {
+  std::lock_guard lock(mutex);
+  auto inv = inverse(navigation);
+  p.position = transform(inv, p.position);
+  p.orientation = multiply(inv.orientation, p.orientation);
+  return sampleInternal(source, p, 1 / navigation.scale);
+}
+bool Editor::eraseRoom(Vec3 p, float radius) {
+  std::lock_guard lock(mutex);
+  return erase(transform(inverse(navigation), p), radius / navigation.scale);
+}
+bool Editor::selectRayRoom(Vec3 origin, Vec3 direction, float radius,
+                           bool additive) {
+  std::lock_guard lock(mutex);
+  auto inv = inverse(navigation);
+  return selectRay(transform(inv, origin), rotate(inv.orientation, direction),
+                   radius / navigation.scale, additive);
+}
+void Editor::navigate(Transform value) {
+  if (!finite(value) || value.scale < .05f || value.scale > 20)
+    throw std::runtime_error("Invalid canvas navigation");
+  std::lock_guard lock(mutex);
+  finishLocked();
+  navigation = value;
+}
+Transform Editor::canvas() const {
+  std::lock_guard lock(mutex);
+  return navigation;
+}
+bool Editor::sampleInternal(int source, Point p, float sizeScale) {
+  std::lock_guard lock(mutex);
   if (owner && owner != source)
+    return false;
+  if (settings.tool == Tool::Navigate)
     return false;
   if (hiddenLayers.count(settings.layer))
     return false;
   if (settings.tool == Tool::Erase)
-    return erase(p.position, settings.eraser);
+    return erase(p.position, settings.eraser * sizeScale);
   if (settings.tool == Tool::Select)
-    return select(p.position, settings.eraser, true);
+    return select(p.position, settings.eraser * sizeScale, true);
   if (settings.tool == Tool::Recolor) {
-    if (!select(p.position, settings.eraser, false))
+    if (!select(p.position, settings.eraser * sizeScale, false))
       return false;
     recolorSelection(settings.color);
     return true;
@@ -157,7 +199,7 @@ bool Editor::sample(int source, Point p) {
     active = Stroke{};
     active.brush = settings.brush;
     active.color = settings.color;
-    active.size = settings.size;
+    active.size = settings.size * sizeScale;
     active.layer = settings.layer;
     owner = source;
   }
@@ -170,7 +212,7 @@ bool Editor::sample(int source, Point p) {
   validate(probe);
   if (active.points.empty() ||
       length(active.points.back().position - p.position) >
-          std::max(.0003f, settings.size * .025f))
+          std::max(.0003f * sizeScale, settings.size * sizeScale * .025f))
     active.points.push_back(std::move(p));
   return true;
 }
@@ -357,8 +399,14 @@ void Editor::layerVisible(uint32_t layer, bool visible) {
   finishLocked();
   if (visible)
     hiddenLayers.erase(layer);
-  else
+  else {
     hiddenLayers.insert(layer);
+    for (auto it = selected.begin(); it != selected.end();)
+      if (document.strokes[*it].layer == layer)
+        it = selected.erase(it);
+      else
+        ++it;
+  }
   changed();
 }
 bool Editor::layerVisible(uint32_t layer) const {
