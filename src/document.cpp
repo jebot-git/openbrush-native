@@ -28,24 +28,59 @@ void History::apply(const Edit &e, bool forward) {
   else
     document.strokes.erase(document.strokes.begin() + e.index);
 }
-void History::append(Stroke s) {
-  validate(s);
-  if (saved > past.size())
-    savedReachable = false;
-  future.clear();
-  Edit e{document.strokes.size(), std::move(s), true};
-  apply(e, true);
-  past.push_back(std::move(e));
+void History::apply(const Command &command, bool forward) {
+  if (forward)
+    for (const auto &e : command)
+      apply(e, true);
+  else
+    for (auto it = command.rbegin(); it != command.rend(); ++it)
+      apply(*it, false);
 }
-void History::erase(size_t index) {
-  if (index >= document.strokes.size())
-    throw std::out_of_range("Stroke index");
+void History::execute(Command command) {
+  if (command.empty())
+    return;
   if (saved > past.size())
     savedReachable = false;
   future.clear();
-  Edit e{index, document.strokes[index], false};
-  apply(e, true);
-  past.push_back(std::move(e));
+  apply(command, true);
+  past.push_back(std::move(command));
+}
+void History::append(Stroke s) { appendMany({std::move(s)}); }
+void History::appendMany(std::vector<Stroke> strokes) {
+  Command command;
+  size_t index = document.strokes.size();
+  for (auto &s : strokes) {
+    validate(s);
+    command.push_back({index++, std::move(s), true});
+  }
+  execute(std::move(command));
+}
+void History::erase(size_t index) { eraseMany({index}); }
+void History::eraseMany(std::vector<size_t> indices) {
+  std::sort(indices.begin(), indices.end(), std::greater<size_t>());
+  indices.erase(std::unique(indices.begin(), indices.end()), indices.end());
+  Command command;
+  for (auto index : indices) {
+    if (index >= document.strokes.size())
+      throw std::out_of_range("Stroke index");
+    command.push_back({index, document.strokes[index], false});
+  }
+  execute(std::move(command));
+}
+void History::replace(const std::vector<std::pair<size_t, Stroke>> &changes) {
+  Command command;
+  std::vector<size_t> seen;
+  for (const auto &change : changes) {
+    auto index = change.first;
+    validate(change.second);
+    if (index >= document.strokes.size() ||
+        std::find(seen.begin(), seen.end(), index) != seen.end())
+      throw std::out_of_range("Invalid replacement index");
+    seen.push_back(index);
+    command.push_back({index, document.strokes[index], false});
+    command.push_back({index, change.second, true});
+  }
+  execute(std::move(command));
 }
 bool History::eraseNear(Vec3 p, float radius) {
   for (size_t i = document.strokes.size(); i > 0; --i) {

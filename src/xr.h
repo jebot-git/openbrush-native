@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
+#include "editor.h"
 #include "graphics.h"
 #include "render.h"
+#include <atomic>
 #define XR_USE_PLATFORM_EGL
 #define XR_USE_GRAPHICS_API_OPENGL
 #include <functional>
@@ -26,12 +28,11 @@ class XrPainter {
   XrSpace handSpaces[2]{};
   std::vector<Eye> eyes;
   XrSessionState state = XR_SESSION_STATE_UNKNOWN;
-  bool running = false, quit = false;
-  Document &document;
-  History &history;
+  bool running = false, quit = false, overlayMode = true;
+  Editor &editor;
+  std::atomic_bool *stop = nullptr;
   Renderer renderer;
-  Stroke active;
-  bool drawing = false, erasing = false;
+
   XrEnvironmentBlendMode blend = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
   std::function<void()> changed;
   void setup(bool overlay);
@@ -41,8 +42,8 @@ class XrPainter {
   void cleanup();
 
 public:
-  XrPainter(Document &d, History &h, std::function<void()> save,
-            bool overlay = true);
+  XrPainter(Editor &editor, std::function<void()> save, bool overlay = true,
+            std::atomic_bool *stop = nullptr);
   ~XrPainter();
   void run(unsigned frameLimit = 0);
   static void probe();

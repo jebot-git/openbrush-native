@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
-#include "math.h"
+#include "brush-math.h"
 #include <cstdint>
 #include <filesystem>
 #include <map>
@@ -44,7 +44,10 @@ class History {
     bool inserted;
   };
   Document &document;
-  std::vector<Edit> past, future;
+  using Command = std::vector<Edit>;
+  std::vector<Command> past, future;
+  void execute(Command command);
+  void apply(const Command &command, bool forward);
   size_t saved = 0;
   bool savedReachable = true;
   void apply(const Edit &edit, bool forward);
@@ -53,10 +56,16 @@ public:
   explicit History(Document &value) : document(value) {}
   void append(Stroke stroke);
   void erase(size_t index);
+  void appendMany(std::vector<Stroke> strokes);
+  void replace(const std::vector<std::pair<size_t, Stroke>> &strokes);
+  void eraseMany(std::vector<size_t> indices);
+  bool canUndo() const { return !past.empty(); }
+  bool canRedo() const { return !future.empty(); }
   bool eraseNear(Vec3 position, float radius);
   bool undo();
   bool redo();
   bool dirty() const { return !savedReachable || past.size() != saved; }
+  void markDirty() { savedReachable = false; }
   void markSaved() {
     saved = past.size();
     savedReachable = true;

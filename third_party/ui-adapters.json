@@ -1,0 +1,16 @@
+{
+  "repository": "https://github.com/jebot-git/xnedit",
+  "revision": "61a79be9792a8b4c226553cd49ab188fa0518b1b",
+  "paths": [
+    "fltk/appearance.h",
+    "fltk/bdf_font.hpp",
+    "fltk/gpu-window.h",
+    "fltk/suite-icons.h",
+    "fltk/desktop-menu.h",
+    "fltk/desktop-menu.cpp",
+    "fltk/desktop-menu.cmake",
+    "fltk/appmenu.xml"
+  ],
+  "license": "MIT",
+  "adaptation": "X11 build-option macro renamed to OPENBRUSH_ENABLE_X11; original SPDX notices retained"
+}

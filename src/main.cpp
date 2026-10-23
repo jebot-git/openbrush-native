@@ -8,6 +8,7 @@ ob::Document demo() {
   for (int j = 0; j < 3; ++j) {
     ob::Stroke s;
     s.size = .018f;
+    s.brush = "4391385a-cf83-4396-9e33-31e4e4930b27";
     s.color = {j == 0 ? 1.f : .1f, j == 1 ? 1.f : .2f, j == 2 ? 1.f : .25f, 1};
     for (int i = 0; i < 150; ++i) {
       float t = i * .05f;
@@ -58,7 +59,7 @@ void renderImage(const ob::Document &d, const std::string &file) {
   glDeleteRenderbuffers(1, &depth);
 }
 } // namespace
-int main(int argc, char **argv) try {
+int xrMain(int argc, char **argv) try {
   std::string input, output, capture;
   unsigned frames = 0;
   bool example = false, overlay = true;
@@ -71,7 +72,9 @@ int main(int argc, char **argv) try {
       std::cout
           << "OpenBrush Native 0.1.0 (C++/OpenXR/OpenGL; no external engine)\n";
       return 0;
-    } else if (arg == "--demo")
+    } else if (arg == "--xr" || arg == "--headless")
+      continue;
+    else if (arg == "--demo")
       example = true;
     else if (arg == "--exclusive")
       overlay = false;
@@ -115,12 +118,14 @@ int main(int argc, char **argv) try {
     if (input.empty() && !example && std::filesystem::exists(output))
       document = ob::readTilt(output);
   }
-  ob::History history(document);
+  ob::Editor editor;
+  editor.load(std::move(document));
   auto save = [&] {
-    ob::writeTilt(document, output);
-    history.markSaved();
+    auto version = editor.frame().revision;
+    ob::writeTilt(editor.copy(), output);
+    editor.saved(version);
   };
-  ob::XrPainter painter(document, history, save, overlay);
+  ob::XrPainter painter(editor, save, overlay);
   painter.run(frames);
   return 0;
 } catch (const std::exception &e) {

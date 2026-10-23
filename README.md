@@ -1,75 +1,129 @@
 # OpenBrush Native for de-xr
 
-Work in progress toward a native C++ OpenXR painting application based on the
-Open Brush artwork format. No Unity, Godot, Unreal, external game engine, cloud
-services or multiplayer components are built or linked. This is an early native
-implementation, not a claim of Open Brush feature or visual parity.
+A native C++ OpenXR painting implementation based on Open Brush's editable
+artwork format. The application uses OpenGL and FLTK directly. No Unity, Godot,
+Unreal or other external game engine is built or linked. Multiplayer and cloud
+functionality are outside scope. This remains an early implementation rather
+than a claim of full Open Brush feature or visual parity.
 
-The current executable paints pressure-sensitive 3D tube strokes, erases whole
-strokes by proximity, supports stroke undo/redo, and saves editable `.tilt`
-artworks atomically. OpenXR uses stereo projection layers, tracked controller
-poses and actions, a local reference space, GPU OpenGL rendering, and a
-windowless EGL context. Default overlay mode requires `XR_EXTX_overlay` and
-coexists with the running compositor. `--exclusive` explicitly permits a primary
-XR session. The Linux EGL binding currently requires `XR_MNDX_egl_enable` in
-addition to `XR_KHR_opengl_enable`.
+## Build and run
+
+Dependencies: C++17, CMake, Ninja, OpenXR loader/development headers, EGL/OpenGL,
+libarchive, nlohmann JSON headers, Fontconfig, GIO, Wayland development headers,
+`wayland-scanner`, and the de-xr patched FLTK 1.4.5. Tests also use Python 3's
+standard library; the optional desktop interaction test needs Xvfb.
 
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DFLTK_DIR=/opt/fltk-vr/toolkit/share/fltk
 cmake --build build --parallel 4
 ctest --test-dir build --output-on-failure
+build/openbrush-native --demo
+build/openbrush-native artwork.tilt
 build/openbrush-native --probe
-build/openbrush-native --demo --render build/demo.ppm
-build/openbrush-native --open artwork.tilt --save edited.tilt
+build/openbrush-native --xr --open artwork.tilt --save edited.tilt
 ```
 
-Build dependencies: C++17, CMake, Ninja, OpenXR loader/development headers,
-EGL/OpenGL development libraries, libarchive, nlohmann JSON headers. Tests use
-Python 3's standard library. No graphical toolkit is required for this initial
-XR executable. A native FLTK frontend conforming to DomeD is still outstanding;
-there is currently no desktop editor or headset tool palette.
+The default FLTK frontend explicitly selects Wayland and does not fall back to
+X11. X11 is available only with `-DOPENBRUSH_ENABLE_X11=ON` and an explicit
+`--x11` launch. `--version` and `--probe` do not create a desktop window.
+`--demo --render preview.ppm` renders an offscreen native GL diagnostic without
+starting XR or opening a display. There is no system installation target yet.
 
-Right trigger draws, left trigger erases. Right A/B undo/redo on Touch controllers.
-Vive, Index and simple-controller pose/trigger bindings are also suggested, but
-have not been verified on those devices. Without `--save`, edits autosave to
-`$XDG_STATE_HOME/openbrush-native/recovery.tilt` (normally under `~/.local/state`),
-which is restored at startup when no input file is supplied. Input artwork is
-never silently replaced unless explicitly selected as the save destination.
-`--frames N` exits after N frames for runtime checks. `--demo` starts with three
-colored sample strokes.
+## FLTK editor and shared drawing state
+
+The desktop window provides a GPU viewport, tools, brush selection, native color
+chooser, size/opacity controls, mirrored painting, layers, visibility, selection,
+duplication, recoloring and selection transforms. File dialogs open and save
+editable `.tilt` artworks asynchronously. Native FLTK widgets follow DomeD's
+bitmap font and appearance changes. Real commands are exported to the universal
+menu; the local bar collapses only while a menu host is available and restores
+on host loss. Its hidden strip is reclaimed and keyboard shortcuts remain live.
+
+Left drag applies the selected tool on the current view plane. Select and
+Recolor pick strokes along the view ray. Right drag orbits; middle/Shift drag
+pans; the mouse wheel zooms in the standard desktop direction. Selection is
+shown with a yellow spatial bounding box. `F` fits the drawing, `R` resets the
+view, Ctrl-Z/Ctrl-Shift-Z undo/redo, Ctrl-A selects all, Ctrl-D duplicates,
+Delete removes selected strokes, and Ctrl-S saves. Mirror pairs and compound
+selection edits undo as single commands.
+
+**Start XR painting** (F6) starts a native XR worker using the same document and
+tool settings as the FLTK editor. Palette changes apply while XR is running.
+The model uses synchronized edits and immutable scene snapshots; neither
+rendering thread holds the model lock while submitting GPU work. Completed
+stroke meshes stay in GPU buffers until the document changes. Active strokes
+and selection bounds update separately. Layers hidden in the editor are also
+hidden in XR; hidden content remains in saved artworks.
+
+Unsaved drawings are copied to a private per-process recovery file every five
+seconds, including an in-progress stroke. A subsequent desktop launch offers
+drawings from dead processes for recovery. Recovery opens as unsaved artwork
+and requires a real save destination. Cancel/save/discard prompts protect
+changes when opening, creating or closing drawings. Runtime data is under
+`$XDG_STATE_HOME/openbrush-native` (normally `~/.local/state/openbrush-native`).
+
+## Native XR path
+
+The XR renderer uses real stereo projection layers, controller poses/actions,
+a local reference space, GPU OpenGL rendering and a windowless EGL context.
+Default overlay mode requires `XR_EXTX_overlay`, blends transparently behind
+the artwork, and coexists with the running compositor. `--exclusive` explicitly
+allows a primary session. The current Linux graphics path additionally requires
+`XR_KHR_opengl_enable` and `XR_MNDX_egl_enable`.
+
+Right trigger uses the selected tool, left trigger erases, and right A/B undo
+and redo on Touch controllers. Vive, Index and simple-controller pose/trigger
+bindings are also suggested, but have not been verified on those devices.
+Stopping XR or changing a drawing stops only this application's XR worker;
+there is no compositor, display-manager or WiVRn restart.
+
+`--xr` runs without the desktop editor. Without `--save`, completed edits save
+to `recovery.tilt` in the state directory, restored on the next standalone
+launch with no input file. Input artwork is never silently replaced unless
+explicitly selected as the save destination. `--frames N` bounds a runtime test.
+
+A headset-native palette and canvas grab/navigation controls remain outstanding.
+The FLTK editor currently supplies brush/color/size/layer settings in XR.
+Physical controller painting and the complete creative workflow still require
+verification; short runtime tests establish stereo submission, not that coverage.
+
+## Artwork and brush coverage
 
 The `.tilt` reader supports packed containers and loose metadata/sketch files,
-sketch versions 5 and 6, coordinate/size conversion from Unity's left-handed
-decimeter space to OpenXR's right-handed meter space, pressure/timestamps,
-brush GUIDs, stroke flags, scale, group and layer IDs. Packed-file attachments,
-metadata fields and unknown binary extensions are retained on save. Unknown
-brush GUIDs are retained; the initial renderer renders all strokes as tubes.
-Per-point color extensions are retained but not yet rendered. Referenced media,
-scene/layer transforms, environment settings and imported model/image content
-are not yet implemented in the native renderer. Their metadata is preserved.
-Saving modifications from this prototype should use a new filename.
+sketch versions 5/6, Unity left-handed decimeter to OpenXR right-handed meter
+conversion, pressure/timestamps, brush GUIDs, stroke flags, scale, group and
+layer IDs. Packed-file attachments, metadata fields and unknown binary
+extensions are retained on save. Writes use a temporary file, sync and atomic
+replacement. Use new output filenames when editing artwork with this prototype.
 
-The geometry core also implements ribbon/flat meshes. Brush selection,
-material/texture fidelity, configurable tools, layers, selection/transforms,
-spatial palette interaction, FLTK dialogs/universal menu/appearance integration,
-additional export formats and packaging remain incomplete. Multiplayer and
-cloud features are outside this project.
+Eight native brush styles currently have distinct geometry/material behavior:
+Wire, Flat, Marker, Ink, Light, Dots, Stars and Highlighter. These are native
+approximations, not shader/texture parity with Unity Open Brush. Light is
+unshaded; stamp brushes produce oriented dots/stars; Highlighter uses opacity.
+Per-point replacement/multiply/add color extensions are interpreted. Unknown
+brush GUIDs are preserved and rendered using the wire fallback. Referenced
+models/images/videos, scene/layer transforms, environments and original brush
+materials/textures are not yet rendered; their metadata is retained. Additional
+export formats are also outstanding.
 
-Tests cover a real upstream one-stroke fixture, an independent Python `.tilt`
-reader, round-trip extension/metadata/attachment preservation, malformed data,
-atomic-save behavior, history, geometry and a nonblank colored native GL render.
-A short live WiVRn check on 2026-10-23 submitted 14 stereo frames in 15 OpenXR
-frames. This establishes the runtime path, not physical controller drawing,
-complete workflow coverage or brush parity. The prototype is not installed as a
-system application yet.
+## Verification and provenance
 
-## Provenance and licensing
+Default CTest covers the real upstream `.tilt` fixture, an independent Python
+reader, extension/metadata/attachment preservation, malformed input, atomic
+save behavior, history, native colored GL output, editor transactions/layers,
+concurrent snapshots and Wayland backend policy. Build with the optional X11
+backend to include a private-display/private-bus FLTK interaction test covering
+pointer alignment, editing, menu host gain/loss, asynchronous file operations
+and recovery. A native Wayland capture has also been inspected under DomeD.
+A short combined FLTK/WiVRn run on 2026-10-23 submitted 14 stereo views in 15
+frames without restarting the user's session.
 
-Open Brush reference revision and format/fixture provenance are recorded in
-`third_party/upstream.json`. `third_party/brush-catalog.json` records 83 upstream
-brush descriptors from the checked-out Resources/Brushes tree; this is reference
-data, not a claim that all those brushes are implemented. The reference checkout
-is ignored and is not a build dependency. Open Brush-derived format information,
-reference catalog and test fixture are Apache-2.0; see `LICENSE` and `NOTICE`.
-The native EGL bootstrap is reused under MIT from Ghostty XR via FLTerm XR; its
+`third_party/upstream.json` records the Open Brush revision, format sources and
+fixture provenance. Its 83-entry reference brush catalog is not a list of
+implemented brushes. The ignored upstream reference checkout is not a build or
+installation dependency. `third_party/ui-adapters.json` records the separately
+MIT-licensed de-xr appearance, bitmap-font, GPU-widget and menu adapters.
+Open Brush-derived material and native code use Apache-2.0 (`LICENSE`, `NOTICE`).
+The native EGL bootstrap is MIT-licensed from Ghostty XR via FLTerm XR; its
 notice is in `third_party/LICENSE.native-graphics`.

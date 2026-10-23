@@ -48,9 +48,9 @@ void XrPainter::probe() {
         XR_EXTX_OVERLAY_EXTENSION_NAME})
     std::cout << name << ": " << (has(list, name) ? "yes" : "no") << '\n';
 }
-XrPainter::XrPainter(Document &d, History &h, std::function<void()> save,
-                     bool overlay)
-    : document(d), history(h), changed(std::move(save)) {
+XrPainter::XrPainter(Editor &value, std::function<void()> save, bool overlay,
+                     std::atomic_bool *stop)
+    : editor(value), stop(stop), changed(std::move(save)) {
   try {
     setup(overlay);
   } catch (...) {
@@ -90,6 +90,7 @@ void XrPainter::cleanup() {
   }
 }
 void XrPainter::setup(bool overlay) {
+  overlayMode = overlay;
   auto available = extensions();
   std::vector<const char *> ext{XR_KHR_OPENGL_ENABLE_EXTENSION_NAME,
                                 XR_MNDX_EGL_ENABLE_EXTENSION_NAME};
@@ -257,17 +258,14 @@ void XrPainter::setup(bool overlay) {
   }
 }
 void XrPainter::finishStroke() {
-  if (drawing && !active.points.empty()) {
-    history.append(std::move(active));
+  auto before = editor.frame().revision;
+  editor.finish(2);
+  if (editor.frame().revision != before)
     changed();
-  }
-  active = Stroke{};
-  drawing = false;
 }
 void XrPainter::input(XrTime time) {
   if (state != XR_SESSION_STATE_FOCUSED) {
     finishStroke();
-    erasing = false;
     return;
   }
   XrActiveActionSet activeSet{actionSet, XR_NULL_PATH};
@@ -283,48 +281,44 @@ void XrPainter::input(XrTime time) {
     XR(xrGetActionStateBoolean(session, &get, &value));
     if (value.isActive && value.changedSinceLastSync && value.currentState) {
       finishStroke();
-      if (pair.second ? history.redo() : history.undo())
+      if (pair.second ? editor.redo() : editor.undo())
         changed();
     }
   }
-  for (int hand = 0; hand < 2; ++hand) {
+  // Read both controllers before mutating a stroke. Erasing wins when both
+  // triggers are held, avoiding a new one-point stroke every frame.
+  struct Hand {
+    bool down = false;
+    Point point;
+  };
+  Hand hand[2];
+  for (int i = 0; i < 2; ++i) {
     XrActionStateGetInfo get{XR_TYPE_ACTION_STATE_GET_INFO};
     get.action = trigger;
-    get.subactionPath = hands[hand];
+    get.subactionPath = hands[i];
     XrActionStateFloat value{XR_TYPE_ACTION_STATE_FLOAT};
     XR(xrGetActionStateFloat(session, &get, &value));
     XrSpaceLocation pose{XR_TYPE_SPACE_LOCATION};
-    XR(xrLocateSpace(handSpaces[hand], reference, time, &pose));
-    const auto valid = XR_SPACE_LOCATION_POSITION_VALID_BIT |
-                       XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
-    bool down = value.isActive && value.currentState > .08f &&
-                (pose.locationFlags & valid) == valid;
-    if (hand == 1) {
-      if (!down) {
-        finishStroke();
-        continue;
-      }
-      if (!drawing) {
-        active = Stroke{};
-        active.color = {.15f, .65f, 1, 1};
-        drawing = true;
-      }
-      Point p{
-          {pose.pose.position.x, pose.pose.position.y, pose.pose.position.z},
-          {pose.pose.orientation.x, pose.pose.orientation.y,
-           pose.pose.orientation.z, pose.pose.orientation.w},
-          value.currentState,
-          uint32_t(time / 1000000)};
-      if (active.points.empty() ||
-          length(active.points.back().position - p.position) > .001f)
-        active.points.push_back(p);
-    } else if (down) {
-      finishStroke();
-      Vec3 p{pose.pose.position.x, pose.pose.position.y, pose.pose.position.z};
-      if (history.eraseNear(p, .025f))
-        changed();
-    }
+    XR(xrLocateSpace(handSpaces[i], reference, time, &pose));
+    auto flags = XR_SPACE_LOCATION_POSITION_VALID_BIT |
+                 XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
+    hand[i].down = value.isActive && value.currentState > .08f &&
+                   (pose.locationFlags & flags) == flags;
+    hand[i].point = {
+        {pose.pose.position.x, pose.pose.position.y, pose.pose.position.z},
+        {pose.pose.orientation.x, pose.pose.orientation.y,
+         pose.pose.orientation.z, pose.pose.orientation.w},
+        value.currentState,
+        uint32_t(time / 1000000)};
   }
+  if (hand[0].down) {
+    finishStroke();
+    if (editor.erase(hand[0].point.position, editor.tools().eraser))
+      changed();
+  } else if (hand[1].down)
+    editor.sample(2, hand[1].point);
+  else
+    finishStroke();
 }
 void XrPainter::events() {
   XrEventDataBuffer event{XR_TYPE_EVENT_DATA_BUFFER};
@@ -354,7 +348,7 @@ void XrPainter::events() {
 }
 void XrPainter::run(unsigned frameLimit) {
   unsigned frames = 0, rendered = 0;
-  while (!quit) {
+  while (!quit && !(stop && stop->load())) {
     events();
     if (!running) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -366,10 +360,13 @@ void XrPainter::run(unsigned frameLimit) {
     XrFrameBeginInfo begin{XR_TYPE_FRAME_BEGIN_INFO};
     XR(xrBeginFrame(session, &begin));
     input(frame.predictedDisplayTime);
+    auto content = editor.frame();
     std::vector<XrCompositionLayerProjectionView> layers(
         eyes.size(), {XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW});
     XrCompositionLayerProjection layer{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
     layer.space = reference;
+    layer.layerFlags =
+        overlayMode ? XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT : 0;
     layer.viewCount = layers.size();
     layer.views = layers.data();
     bool submit = false;
@@ -410,8 +407,10 @@ void XrPainter::run(unsigned frameLimit) {
               viewMatrix({p.position.x, p.position.y, p.position.z},
                          {p.orientation.x, p.orientation.y, p.orientation.z,
                           p.orientation.w}));
-          renderer.draw(document, drawing ? &active : nullptr, vp, e.width,
-                        e.height);
+          renderer.draw(*content.document, &content.active, vp, e.width,
+                        e.height, content.revision,
+                        overlayMode ? Color{0, 0, 0, 0}
+                                    : Color{.035f, .045f, .06f, 1});
           glFlush();
           XrSwapchainImageReleaseInfo release{
               XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
