@@ -1,0 +1,15 @@
+OpenBrush Native for de-xr
+
+Open Brush and Tilt Brush upstream material:
+Copyright 2016 Google Inc. and Open Brush contributors.
+Licensed under the Apache License, Version 2.0.
+https://github.com/icosa-foundation/open-brush
+
+The .tilt container and sketch format implementation was independently written
+using the upstream source descriptions identified in third_party/upstream.json.
+The brush descriptor catalog and upstream-one-stroke.tilt fixture come from that
+repository. Names and trademarks retain their respective ownership.
+
+Windowless EGL bootstrap:
+Copyright (c) 2026 Ghostty XR contributors.
+Reused under the MIT license; see third_party/LICENSE.native-graphics.

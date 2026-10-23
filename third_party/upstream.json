@@ -1,0 +1,13 @@
+{
+  "url": "https://github.com/icosa-foundation/open-brush",
+  "commit": "39b088aabf150d8a0b28667991c4ad39548c9ff3",
+  "reference_only": "upstream-reference/open-brush (not built or installed)",
+  "format_sources": [
+    "Assets/Scripts/Save/SketchWriter.cs",
+    "Assets/Scripts/Save/TiltFile.cs",
+    "Assets/Scripts/Save/SketchMetadata.cs",
+    "Assets/Scripts/App.cs"
+  ],
+  "brush_catalog_entries": 83,
+  "fixture": "Assets/Scripts/Export/Tests/OneStroke.tilt"
+}

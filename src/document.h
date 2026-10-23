@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: Apache-2.0
+#pragma once
+#include "math.h"
+#include <cstdint>
+#include <filesystem>
+#include <map>
+#include <nlohmann/json.hpp>
+#include <string>
+#include <vector>
+namespace ob {
+using Json = nlohmann::json;
+using Bytes = std::vector<uint8_t>;
+struct Color {
+  float r = 1, g = 1, b = 1, a = 1;
+};
+struct Point {
+  Vec3 position;
+  Quat orientation;
+  float pressure = 1;
+  uint32_t timeMs = 0;
+  std::map<unsigned, uint32_t> extensions;
+};
+struct Stroke {
+  std::string brush = "2d35bcf0-e4d8-452c-97b1-3311be063130";
+  Color color;
+  float size = .015f, scale = 1;
+  uint32_t flags = 0, group = 0, seed = 0, layer = 0;
+  std::vector<Point> points;
+  // Preserve unknown extensions when existing artworks are edited and saved.
+  std::map<unsigned, Bytes> extensions;
+};
+struct Document {
+  std::vector<Stroke> strokes;
+  Bytes sketchHeader;
+  Json metadata = Json::object();
+  std::map<std::string, Bytes> attachments;
+  std::vector<std::string> warnings;
+};
+void validate(const Stroke &stroke);
+class History {
+  struct Edit {
+    size_t index;
+    Stroke stroke;
+    bool inserted;
+  };
+  Document &document;
+  std::vector<Edit> past, future;
+  size_t saved = 0;
+  bool savedReachable = true;
+  void apply(const Edit &edit, bool forward);
+
+public:
+  explicit History(Document &value) : document(value) {}
+  void append(Stroke stroke);
+  void erase(size_t index);
+  bool eraseNear(Vec3 position, float radius);
+  bool undo();
+  bool redo();
+  bool dirty() const { return !savedReachable || past.size() != saved; }
+  void markSaved() {
+    saved = past.size();
+    savedReachable = true;
+  }
+};
+Document readTilt(const std::filesystem::path &path);
+void writeTilt(const Document &document, const std::filesystem::path &path);
+Bytes encodeSketch(const Document &document, Json &metadata);
+Document decodeSketch(const Bytes &data, const Json &metadata);
+void atomicWrite(const std::filesystem::path &path, const Bytes &bytes);
+} // namespace ob

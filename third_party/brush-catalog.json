@@ -1,0 +1,417 @@
+[
+  {
+    "guid": "0ad58bbd-42bc-484e-ad9a-b61036ff4ce7",
+    "name": "EnvironmentDiffuse",
+    "source": "Assets/Resources/Brushes/Poly/Environments/EnvironmentDiffuse.asset"
+  },
+  {
+    "guid": "d01d9d6c-9a61-4aba-8146-5891fafb013b",
+    "name": "EnvironmentDiffuseLightMap",
+    "source": "Assets/Resources/Brushes/Poly/Environments/EnvironmentDiffuseLightMap.asset"
+  },
+  {
+    "guid": "f86a096c-2f4f-4f9d-ae19-81b99f2944e0",
+    "name": "PbrTemplate",
+    "source": "Assets/Resources/Brushes/Poly/Pbr/PbrTemplate.asset"
+  },
+  {
+    "guid": "19826f62-42ac-4a9e-8b77-4231fbd0cfbf",
+    "name": "PbrTransparentTemplate",
+    "source": "Assets/Resources/Brushes/Poly/Pbr/PbrTransparentTemplate.asset"
+  },
+  {
+    "guid": "cf3401b3-4ada-4877-995a-1aa64e7b604a",
+    "name": "SvgTemplate",
+    "source": "Assets/Resources/Brushes/Poly/Pbr/SvgTemplate.asset"
+  },
+  {
+    "guid": "232998f8-d357-47a2-993a-53415df9be10",
+    "name": "BlocksGem",
+    "source": "Assets/Resources/Brushes/Blocks/BlocksGem/BlocksGem.asset"
+  },
+  {
+    "guid": "3d813d82-5839-4450-8ddc-8e889ecd96c7",
+    "name": "BlocksGlass",
+    "source": "Assets/Resources/Brushes/Blocks/BlocksGlass/BlocksGlass.asset"
+  },
+  {
+    "guid": "0e87b49c-6546-3a34-3a44-8a556d7d6c3e",
+    "name": "BlocksBasic",
+    "source": "Assets/Resources/Brushes/Blocks/BlocksPaper/BlocksPaper.asset"
+  },
+  {
+    "guid": "89d104cd-d012-426b-b5b3-bbaee63ac43c",
+    "name": "Bubbles",
+    "source": "Assets/Resources/Brushes/Basic/Bubbles/Bubbles.asset"
+  },
+  {
+    "guid": "700f3aa8-9a7c-2384-8b8a-ea028905dd8c",
+    "name": "CelVinyl",
+    "source": "Assets/Resources/Brushes/Basic/CelVinyl/CelVinyl.asset"
+  },
+  {
+    "guid": "0f0ff7b2-a677-45eb-a7d6-0cd7206f4816",
+    "name": "ChromaticWave",
+    "source": "Assets/Resources/Brushes/Basic/ChromaticWave/ChromaticWave.asset"
+  },
+  {
+    "guid": "1161af82-50cf-47db-9706-0c3576d43c43",
+    "name": "CoarseBristles",
+    "source": "Assets/Resources/Brushes/Basic/CoarseBristles/CoarseBristles.asset"
+  },
+  {
+    "guid": "79168f10-6961-464a-8be1-57ed364c5600",
+    "name": "CoarseBristles",
+    "source": "Assets/Resources/Brushes/Basic/CoarseBristles/CoarseBristlesSingleSided.asset"
+  },
+  {
+    "guid": "1caa6d7d-f015-3f54-3a4b-8b5354d39f81",
+    "name": "Comet",
+    "source": "Assets/Resources/Brushes/Basic/Comet/Comet.asset"
+  },
+  {
+    "guid": "7ae1f880-a517-44a0-99f9-1cab654498c6",
+    "name": "ConcaveHull",
+    "source": "Assets/Resources/Brushes/Basic/ConcaveHull/ConcaveHull.asset"
+  },
+  {
+    "guid": "6a1cf9f9-032c-45ec-311e-a6680bee32e9",
+    "name": "DanceFloor",
+    "source": "Assets/Resources/Brushes/Basic/DanceFloor/DanceFloor.asset"
+  },
+  {
+    "guid": "c8313697-2563-47fc-832e-290f4c04b901",
+    "name": "DiamondHull",
+    "source": "Assets/Resources/Brushes/Basic/DiamondHull/DiamondHull.asset"
+  },
+  {
+    "guid": "4391aaaa-df73-4396-9e33-31e4e4930b27",
+    "name": "Disco",
+    "source": "Assets/Resources/Brushes/Basic/Disco/Disco.asset"
+  },
+  {
+    "guid": "d1d991f2-e7a0-4cf1-b328-f57e915e6260",
+    "name": "DotMarker",
+    "source": "Assets/Resources/Brushes/Basic/DotMarker/DotMarker.asset"
+  },
+  {
+    "guid": "6a1cf9f9-032c-45ec-9b1d-a6680bee30f7",
+    "name": "Dots",
+    "source": "Assets/Resources/Brushes/Basic/Dots/Dots.asset"
+  },
+  {
+    "guid": "0d3889f3-3ede-470c-8af4-f44813306126",
+    "name": "DoubleTaperedFlat",
+    "source": "Assets/Resources/Brushes/Basic/DoubleTaperedFlat/DoubleTaperedFlat.asset"
+  },
+  {
+    "guid": "0d3889f3-3ede-470c-8af4-de4813306126",
+    "name": "DoubleTaperedMarker",
+    "source": "Assets/Resources/Brushes/Basic/DoubleTaperedMarker/DoubleTaperedMarker.asset"
+  },
+  {
+    "guid": "d0262945-853c-4481-9cbd-88586bed93cb",
+    "name": "DuctTape",
+    "source": "Assets/Resources/Brushes/Basic/DuctTape/DuctTape.asset"
+  },
+  {
+    "guid": "3ca16e2f-bdcd-4da2-8631-dcef342f40f1",
+    "name": "DuctTape",
+    "source": "Assets/Resources/Brushes/Basic/DuctTape/DuctTapeSingleSided.asset"
+  },
+  {
+    "guid": "f6e85de3-6dcc-4e7f-87fd-cee8c3d25d51",
+    "name": "Electricity",
+    "source": "Assets/Resources/Brushes/Basic/Electricity/Electricity.asset"
+  },
+  {
+    "guid": "02ffb866-7fb2-4d15-b761-1012cefb1360",
+    "name": "Embers",
+    "source": "Assets/Resources/Brushes/Basic/Embers/Embers.asset"
+  },
+  {
+    "guid": "4391ffaa-df73-4396-9e33-31e4e4930b27",
+    "name": "FacetedTube",
+    "source": "Assets/Resources/Brushes/Basic/FacetedTube/FacetedTube.asset"
+  },
+  {
+    "guid": "cb92b597-94ca-4255-b017-0e3f42f12f9e",
+    "name": "Fire",
+    "source": "Assets/Resources/Brushes/Basic/Fire/Fire.asset"
+  },
+  {
+    "guid": "2d35bcf0-e4d8-452c-97b1-3311be063130",
+    "name": "Flat",
+    "source": "Assets/Resources/Brushes/Basic/Flat/Flat.asset"
+  },
+  {
+    "guid": "280c0a7a-aad8-416c-a7d2-df63d129ca70",
+    "name": "Flat",
+    "source": "Assets/Resources/Brushes/Basic/Flat/FlatSingleSided.asset"
+  },
+  {
+    "guid": "55303bc4-c749-4a72-98d9-d23e68e76e18",
+    "name": "FlatDeprecated",
+    "source": "Assets/Resources/Brushes/Basic/FlatDeprecated/FlatDeprecated.asset"
+  },
+  {
+    "guid": "cf019139-d41c-4eb0-a1d0-5cf54b0a42f3",
+    "name": "Highlighter",
+    "source": "Assets/Resources/Brushes/Basic/Highlighter/Highlighter.asset"
+  },
+  {
+    "guid": "6a1cf9f9-032c-45ec-9b6e-a6680bee32e9",
+    "name": "HyperGrid",
+    "source": "Assets/Resources/Brushes/Basic/HyperGrid/HyperGrid.asset"
+  },
+  {
+    "guid": "dce872c2-7b49-4684-b59b-c45387949c5c",
+    "name": "Hypercolor",
+    "source": "Assets/Resources/Brushes/Basic/Hypercolor/Hypercolor.asset"
+  },
+  {
+    "guid": "e8ef32b1-baa8-460a-9c2c-9cf8506794f5",
+    "name": "Hypercolor",
+    "source": "Assets/Resources/Brushes/Basic/Hypercolor/HypercolorSingleSided.asset"
+  },
+  {
+    "guid": "2f212815-f4d3-c1a4-681a-feeaf9c6dc37",
+    "name": "Icing",
+    "source": "Assets/Resources/Brushes/Basic/Icing/Icing.asset"
+  },
+  {
+    "guid": "f5c336cf-5108-4b40-ade9-c687504385ab",
+    "name": "Ink",
+    "source": "Assets/Resources/Brushes/Basic/Ink/Ink.asset"
+  },
+  {
+    "guid": "c0012095-3ffd-4040-8ee1-fc180d346eaa",
+    "name": "Ink",
+    "source": "Assets/Resources/Brushes/Basic/Ink/InkSingleSided.asset"
+  },
+  {
+    "guid": "ea19de07-d0c0-4484-9198-18489a3c1487",
+    "name": "Leaves",
+    "source": "Assets/Resources/Brushes/Basic/Leaves/LeavesSingleSided.asset"
+  },
+  {
+    "guid": "2241cd32-8ba2-48a5-9ee7-2caef7e9ed62",
+    "name": "Light",
+    "source": "Assets/Resources/Brushes/Basic/Light/Light.asset"
+  },
+  {
+    "guid": "4391aaaa-df81-4396-9e33-31e4e4930b27",
+    "name": "LightWire",
+    "source": "Assets/Resources/Brushes/Basic/LightWire/LightWire.asset"
+  },
+  {
+    "guid": "d381e0f5-3def-4a0d-8853-31e9200bcbda",
+    "name": "Lofted",
+    "source": "Assets/Resources/Brushes/Basic/Lofted/Lofted.asset"
+  },
+  {
+    "guid": "429ed64a-4e97-4466-84d3-145a861ef684",
+    "name": "Marker",
+    "source": "Assets/Resources/Brushes/Basic/Marker/Marker.asset"
+  },
+  {
+    "guid": "79348357-432d-4746-8e29-0e25c112e3aa",
+    "name": "MatteHull",
+    "source": "Assets/Resources/Brushes/Basic/MatteHull/MatteHull.asset"
+  },
+  {
+    "guid": "f72ec0e7-a844-4e38-82e3-140c44772699",
+    "name": "OilPaint",
+    "source": "Assets/Resources/Brushes/Basic/OilPaint/OilPaint.asset"
+  },
+  {
+    "guid": "c515dad7-4393-4681-81ad-162ef052241b",
+    "name": "OilPaint",
+    "source": "Assets/Resources/Brushes/Basic/OilPaint/OilPaintSingleSided.asset"
+  },
+  {
+    "guid": "f1114e2e-eb8d-4fde-915a-6e653b54e9f5",
+    "name": "Paper",
+    "source": "Assets/Resources/Brushes/Basic/Paper/Paper.asset"
+  },
+  {
+    "guid": "759f1ebd-20cd-4720-8d41-234e0da63716",
+    "name": "Paper",
+    "source": "Assets/Resources/Brushes/Basic/Paper/PaperSingleSided.asset"
+  },
+  {
+    "guid": "e0abbc80-0f80-e854-4970-8924a0863dcc",
+    "name": "Petal",
+    "source": "Assets/Resources/Brushes/Basic/Petal/Petal.asset"
+  },
+  {
+    "guid": "c33714d1-b2f9-412e-bd50-1884c9d46336",
+    "name": "Plasma",
+    "source": "Assets/Resources/Brushes/Basic/Plasma/Plasma.asset"
+  },
+  {
+    "guid": "ad1ad437-76e2-450d-a23a-e17f8310b960",
+    "name": "Rainbow",
+    "source": "Assets/Resources/Brushes/Basic/Rainbow/Rainbow.asset"
+  },
+  {
+    "guid": "faaa4d44-fcfb-4177-96be-753ac0421ba3",
+    "name": "ShinyHull",
+    "source": "Assets/Resources/Brushes/Basic/ShinyHull/ShinyHull.asset"
+  },
+  {
+    "guid": "70d79cca-b159-4f35-990c-f02193947fe8",
+    "name": "Smoke",
+    "source": "Assets/Resources/Brushes/Basic/Smoke/Smoke.asset"
+  },
+  {
+    "guid": "d902ed8b-d0d1-476c-a8de-878a79e3a34c",
+    "name": "Snow",
+    "source": "Assets/Resources/Brushes/Basic/Snow/Snow.asset"
+  },
+  {
+    "guid": "accb32f5-4509-454f-93f8-1df3fd31df1b",
+    "name": "SoftHighlighter",
+    "source": "Assets/Resources/Brushes/Basic/SoftHighlighter/SoftHighlighter.asset"
+  },
+  {
+    "guid": "cf7f0059-7aeb-53a4-2b67-c83d863a9ffa",
+    "name": "Spikes",
+    "source": "Assets/Resources/Brushes/Basic/Spikes/Spikes.asset"
+  },
+  {
+    "guid": "8dc4a70c-d558-4efd-a5ed-d4e860f40dc3",
+    "name": "Splatter",
+    "source": "Assets/Resources/Brushes/Basic/Splatter/Splatter.asset"
+  },
+  {
+    "guid": "7a1c8107-50c5-4b70-9a39-421576d6617e",
+    "name": "Splatter",
+    "source": "Assets/Resources/Brushes/Basic/Splatter/SplatterSingleSided.asset"
+  },
+  {
+    "guid": "d3f3b18a-da03-f694-b838-28ba8e749a98",
+    "name": "3D Printing Brush",
+    "source": "Assets/Resources/Brushes/Basic/Square3DPrintBrush/Square3DPrintBrush.asset"
+  },
+  {
+    "guid": "0eb4db27-3f82-408d-b5a1-19ebd7d5b711",
+    "name": "Stars",
+    "source": "Assets/Resources/Brushes/Basic/Stars/Stars.asset"
+  },
+  {
+    "guid": "44bb800a-fbc3-4592-8426-94ecb05ddec3",
+    "name": "Streamers",
+    "source": "Assets/Resources/Brushes/Basic/Streamers/Streamers.asset"
+  },
+  {
+    "guid": "0077f88c-d93a-42f3-b59b-b31c50cdb414",
+    "name": "Taffy",
+    "source": "Assets/Resources/Brushes/Basic/Taffy/Taffy.asset"
+  },
+  {
+    "guid": "b468c1fb-f254-41ed-8ec9-57030bc5660c",
+    "name": "TaperedFlat",
+    "source": "Assets/Resources/Brushes/Basic/TaperedFlat/TaperedFlat.asset"
+  },
+  {
+    "guid": "c8ccb53d-ae13-45ef-8afb-b730d81394eb",
+    "name": "TaperedFlat",
+    "source": "Assets/Resources/Brushes/Basic/TaperedFlat/TaperedFlatSingleSided.asset"
+  },
+  {
+    "guid": "d90c6ad8-af0f-4b54-b422-e0f92abe1b3c",
+    "name": "TaperedMarker",
+    "source": "Assets/Resources/Brushes/Basic/TaperedMarker/TaperedMarker.asset"
+  },
+  {
+    "guid": "1a26b8c0-8a07-4f8a-9fac-d2ef36e0cad0",
+    "name": "TaperedMarker_Flat",
+    "source": "Assets/Resources/Brushes/Basic/TaperedMarker/TaperedMarker_Flat.asset"
+  },
+  {
+    "guid": "75b32cf0-fdd6-4d89-a64b-e2a00b247b0f",
+    "name": "ThickPaint",
+    "source": "Assets/Resources/Brushes/Basic/ThickPaint/ThickPaint.asset"
+  },
+  {
+    "guid": "fdf0326a-c0d1-4fed-b101-9db0ff6d071f",
+    "name": "ThickPaint",
+    "source": "Assets/Resources/Brushes/Basic/ThickPaint/ThickPaintSingleSided.asset"
+  },
+  {
+    "guid": "4391385a-df73-4396-9e33-31e4e4930b27",
+    "name": "Toon",
+    "source": "Assets/Resources/Brushes/Basic/Toon/Toon.asset"
+  },
+  {
+    "guid": "9871385a-df73-4396-9e33-31e4e4930b27",
+    "name": "TubeToonInverted",
+    "source": "Assets/Resources/Brushes/Basic/TubeToonInverted/TubeToonInverted.asset"
+  },
+  {
+    "guid": "a8fea537-da7c-4d4b-817f-24f074725d6d",
+    "name": "UnlitHull",
+    "source": "Assets/Resources/Brushes/Basic/UnlitHull/UnlitHull.asset"
+  },
+  {
+    "guid": "d229d335-c334-495a-a801-660ac8a87360",
+    "name": "VelvetInk",
+    "source": "Assets/Resources/Brushes/Basic/VelvetInk/VelvetInk.asset"
+  },
+  {
+    "guid": "10201aa3-ebc2-42d8-84b7-2e63f6eeb8ab",
+    "name": "Waveform",
+    "source": "Assets/Resources/Brushes/Basic/Waveform/Waveform.asset"
+  },
+  {
+    "guid": "d120944d-772f-4062-99c6-46a6f219eeaf",
+    "name": "WaveformFFT",
+    "source": "Assets/Resources/Brushes/Basic/WaveformFFT/WaveformFFT.asset"
+  },
+  {
+    "guid": "6a1cf9f9-032c-45ec-9b6e-a6680bee30f7",
+    "name": "WaveformParticles",
+    "source": "Assets/Resources/Brushes/Basic/WaveformParticles/WaveformParticles.asset"
+  },
+  {
+    "guid": "b2ffef01-eaaa-4ab5-aa64-95a2c4f5dbc6",
+    "name": "NeonPulse",
+    "source": "Assets/Resources/Brushes/Basic/WaveformPulse/NeonPulse.asset"
+  },
+  {
+    "guid": "0f5820df-cb6b-4a6c-960e-56e4c8000eda",
+    "name": "WaveformTube",
+    "source": "Assets/Resources/Brushes/Basic/WaveformTube/WaveformTube.asset"
+  },
+  {
+    "guid": "b67c0e81-ce6d-40a8-aeb0-ef036b081aa3",
+    "name": "WetPaint",
+    "source": "Assets/Resources/Brushes/Basic/WetPaint/WetPaint.asset"
+  },
+  {
+    "guid": "dea67637-cd1a-27e4-c9b1-52f4bbcb84e5",
+    "name": "WetPaint",
+    "source": "Assets/Resources/Brushes/Basic/WetPaint/WetPaintSingleSided.asset"
+  },
+  {
+    "guid": "5347acf0-a8e2-47b6-8346-30c70719d763",
+    "name": "WigglyGraphite",
+    "source": "Assets/Resources/Brushes/Basic/WigglyGraphite/WigglyGraphite.asset"
+  },
+  {
+    "guid": "e814fef1-97fd-7194-4a2f-50c2bb918be2",
+    "name": "WigglyGraphite",
+    "source": "Assets/Resources/Brushes/Basic/WigglyGraphite/WigglyGraphiteSingleSided.asset"
+  },
+  {
+    "guid": "4391385a-cf83-4396-9e33-31e4e4930b27",
+    "name": "Wire",
+    "source": "Assets/Resources/Brushes/Basic/Wire/Wire.asset"
+  },
+  {
+    "guid": "2c1a6a63-6552-4d23-86d7-58f6fba8581b",
+    "name": "Wireframe",
+    "source": "Assets/Resources/Brushes/Basic/Wireframe/Wireframe.asset"
+  }
+]
